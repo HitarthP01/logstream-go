@@ -1,63 +1,63 @@
-package main
+package ingestion
 
 import (
 	"bufio"
 	"fmt"
+	"go-sentinel/internal/parser"
+	"go-sentinel/internal/processor"
 	"net"
+	// "text/template/parse"
 )
 
-func main() {
-	// Start listening on TCP port 9000
-	listener, err := net.Listen("tcp", ":9000")
+// StartTCPIngestion starts a TCP server to ingest log data
+// return type is error, because starting a server may fail due to various reasons (e.g., port already in use).
+func StartTCPIngestion(address string, proc *processor.Processor) error {
+	listenr, err := net.Listen("tcp", address)
 	if err != nil {
-		fmt.Println("Error starting server:", err)
-		return
+		return err
 	}
-	defer listener.Close()
-	fmt.Println("Server started on port 9000....")
-
-	// Accept connections in a loop, which is infinite loop here
+	defer listenr.Close()
+	fmt.Println("TCP server started on", address)
 	for {
-		conn, err := listener.Accept() //Accept() blocks (waits) until a client connects
-		/*
-			┌────────────┐                      ┌────────────┐
-			│   Client   │                      │   Server   │
-			│            │                      │            │
-			│ net.Dial() │ ──── connects ────▶  │  Accept()  │
-			│     │      │                      │     │      │
-			│     ▼      │                      │     ▼      │
-			│   conn     │ ◄═══════════════════▶│   conn     │
-			└────────────┘    TCP Connection    └────────────┘
-
-		*/
+		conn, err := listenr.Accept()
 		if err != nil {
 			fmt.Println("Error accepting connection:", err)
 			continue
 		}
 
-		go handleConnection(conn)
-		// concurrency with goroutines, with the keyterm 'go'
-		//explain go handleConnection(conn){}
-		// The 'go' keyword is used to start a new goroutine, which is a lightweight thread managed by the Go runtime.
-		// By prefixing the function call with 'go', the program can handle multiple connections concurrently without blocking the main thread.
-		// This allows the server to efficiently manage multiple clients at the same time.
-
+		//maintain concurrency with goroutines
+		go handleConnection(conn, proc)
 	}
+
 }
 
-func handleConnection(conn net.Conn) {
+func handleConnection(conn net.Conn, proc *processor.Processor) {
+
+	//why do we close the conn here?
+	// We use defer to ensure that the connection is closed when the function exits,
+	// regardless of whether it exits normally or due to an error.
+	// This helps to prevent resource leaks by making sure that the connection is properly closed after we're done using it.
+
+	//why to use defer? if we can just close it at the end of the func?
+	// Using defer ensures that the connection will be closed even if an error occurs or if the function returns early.
+	// If we were to close it only at the end of the function, we might miss closing it in case of an error or early return,
+	// leading to potential resource leaks.
 	defer conn.Close()
 
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
-
 		line := scanner.Text()
-		fmt.Println("Received:", line)
+
+		parsedEntry, ok := parser.ParseLogLine(line)
+		if !ok {
+			fmt.Println("Failed to parse log line:", line)
+			continue
+		}
+		proc.Process(parsedEntry)
+		fmt.Println("Processed: ", parsedEntry.Level, parsedEntry.Message)
+
 	}
-	if err := scanner.Err(); err != nil {
-		fmt.Println("Error reading:", err)
-	}
-	fmt.Println("Client disconnected: ", conn.RemoteAddr())
+
 }
 
 /*
