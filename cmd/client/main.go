@@ -32,7 +32,9 @@ func main() {
 		// The underscore '_' is used to ignore the index of the current element, since we don't need it.
 		// 'log' is the variable that holds the value of the current element in each iteration.
 
-		fmt.Fprintln(conn, log) // what is Fprintln?
+		fmt.Fprintln(conn, log)
+
+		// what is Fprintln?
 		// fmt.Fprintln is a function from the fmt package that writes formatted output to a specified writer (in this case, the TCP connection 'conn').
 		// It appends a newline character at the end of the string, making it suitable for sending log entries line by line.
 

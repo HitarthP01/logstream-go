@@ -15,10 +15,23 @@ func main() {
 	// By creating a new processor instance, we ensure that we have a fresh state
 	// to work with when the server starts receiving log data.
 	proc := processor.New()
+  go proc.Run()
 	err := ingestion.StartTCPIngestion(":9000", proc)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	//how many processors will be created if multiple clients connect to the server?
+	// Only one processor instance is created in the main function.
+	// This single processor instance is shared among all client connections.
+	// Each time a new client connects, a new goroutine is spawned to handle that connection,
+	// but they all use the same processor instance passed to the StartTCPIngestion function.
+
+	//so, all log entries from different clients will be processed by the same processor,and share resources like Logs slice and LevelCounts map?
+	// Yes, all log entries from different clients will be processed by the same processor instance.
+	// This means that they will share resources like the Logs slice and LevelCounts map.
+	// As a result, the processor will aggregate log data from all connected clients,
+	// allowing for a consolidated view of log entries and their statistics.
 }
 
 // 			┌────────────┐                      ┌────────────┐

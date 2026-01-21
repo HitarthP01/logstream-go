@@ -53,7 +53,8 @@ func handleConnection(conn net.Conn, proc *processor.Processor) {
 			fmt.Println("Failed to parse log line:", line)
 			continue
 		}
-		proc.Process(parsedEntry)
+		// proc.Process(parsedEntry)
+		proc.Input <- parsedEntry
 		fmt.Println("Processed: ", parsedEntry.Level, parsedEntry.Message)
 
 	}
